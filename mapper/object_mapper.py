@@ -89,14 +89,16 @@ class ObjectMapper(object):
         self.mappings = {}
         pass
 
-    def create_map(self, type_from, type_to, mapping=None):
-        # type: (type, type, Dict) -> None
+    def create_map(self, type_from, type_to, mapping=None, init_mapping=None):
+        # type: (type, type, Dict, Dict) -> None
         """Method for adding mapping definitions
 
         :param type_from: source type
         :param type_to: target type
         :param mapping: dictionary of mapping definitions in a form {'target_property_name',
                         lambda function from rhe source}
+        :param init_mapping: dictionary of mapping definitions in a form {'target_property_name',
+                        lambda function from rhe source} to map properties through __init__
 
         :return: None
         """
@@ -110,6 +112,9 @@ class ObjectMapper(object):
         if (mapping is not None and not isinstance(mapping, dict)):
             raise ObjectMapperException("mapping, if provided, must be a Dict type")
 
+        if (init_mapping is not None and not isinstance(init_mapping, dict)):
+            raise ObjectMapperException("init_mapping, if provided, must be a Dict type")
+
         key_from = type_from
         key_to = type_to
 
@@ -120,14 +125,14 @@ class ObjectMapper(object):
                     "Mapping for {0}.{1} -> {2}.{3} already exists".format(key_from.__module__, key_from.__name__,
                                                                    key_to.__module__, key_to.__name__))
             else:
-                inner_map[key_to] = (type_to, mapping)
+                inner_map[key_to] = (type_to, mapping, init_mapping)
         else:
             self.mappings[key_from] = {}
-            self.mappings[key_from][key_to] = (type_to, mapping)
+            self.mappings[key_from][key_to] = (type_to, mapping, init_mapping)
 
 
     def map(self, from_obj, to_type=type(None), ignore_case=False, allow_none=False, excluded=None, included=None, allow_unmapped=False):
-        # type: (object, type, bool, bool, List[str], List[str], bool) -> object
+        # type: (object, type, bool, bool, List[str], List[str], bool) -> to_type
         """Method for creating target object instance
 
         :param from_obj: source object to be mapped from
@@ -166,10 +171,10 @@ class ObjectMapper(object):
                 .format(key_from.__module__, key_from.__name__, to_type.__module__, to_type.__name__))
             key_to = to_type
         custom_mappings = self.mappings[key_from][key_to][1]
-        
+        init_arguments = self.mappings[key_from][key_to][2]
+
         # Currently, all target class data members need to have default value
         # Object with __init__ that carries required non-default arguments are not supported
-        inst = key_to()
 
         def not_private(s):
             return not s.startswith('_')
@@ -182,6 +187,13 @@ class ObjectMapper(object):
 
         from_obj_attributes = getmembers(from_obj, lambda a: not isroutine(a))
         from_obj_dict = {k: v for k, v in from_obj_attributes}
+
+        init_kw = dict()
+        if isinstance(init_arguments, dict):
+            for k, fn in init_arguments.items():
+                init_kw[k] = fn(from_obj)
+
+        inst = key_to(**init_kw)
 
         to_obj_attributes = getmembers(inst, lambda a: not isroutine(a))
         to_obj_dict = {k: v for k, v in to_obj_attributes if not_excluded(k) and (not_private(k) or is_included(k, custom_mappings))}
@@ -213,7 +225,7 @@ class ObjectMapper(object):
                 return None
 
         for prop in to_props:
-            
+
             val = None
             suppress_mapping = False
 
@@ -236,7 +248,7 @@ class ObjectMapper(object):
                     val = [map_obj(from_obj_child_i, allow_unmapped) for from_obj_child_i in from_obj_child]
                 else:
                     val = map_obj(from_obj_child, allow_unmapped)
-            
+
             else:
                 suppress_mapping = True
 

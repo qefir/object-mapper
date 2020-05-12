@@ -55,6 +55,20 @@ class ToTestComplexChildClass(object):
         pass
 
 
+class ToTestInitArguments(object):
+    """ To Test Class """
+
+    def __init__(self, full_name):
+        self.full_name = full_name
+
+
+class FromTestInitArguments(object):
+    """ From Test Class """
+
+    def __init__(self):
+        self.name = 'ololo'
+
+
 class FromTestClass(object):
     """ From Test Class """
 
@@ -449,3 +463,12 @@ class ObjectMapperTest(unittest.TestCase):
         self.assertTrue(all(isinstance(k, ToTestComplexChildClass) for k in result.knows), "Children target types must be same")
         self.assertEqual(result.knows[0].full_name, from_class.knows[0].full_name, "StudentName(0) mapping must be equal")
         self.assertEqual(result.knows[1].full_name, from_class.knows[1].full_name, "StudentName(1) mapping must be equal")
+
+    def test_mapping_creation_with_constructor_parameters_correct(self):
+        mapper = ObjectMapper()
+
+        mapper.create_map(FromTestInitArguments, ToTestInitArguments,
+                          init_mapping={'full_name': lambda o: o.name})
+
+        result = mapper.map(FromTestInitArguments(), ToTestInitArguments)
+        self.assertEqual(result.full_name, 'ololo')
