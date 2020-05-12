@@ -55,18 +55,32 @@ class ToTestComplexChildClass(object):
         pass
 
 
-class ToTestInitArguments(object):
+class ToTestConstructorArguments(object):
     """ To Test Class """
 
     def __init__(self, full_name):
         self.full_name = full_name
 
 
-class FromTestInitArguments(object):
+class FromTestConstructorArguments(object):
     """ From Test Class """
 
     def __init__(self):
         self.name = 'ololo'
+
+
+class ToTestConstructorAutoMapping:
+    """ To Test Class """
+
+    def __init__(self, full_name):
+        self.full_name = full_name
+
+
+class FromTestConstructorAutoMapping:
+    """ From Test Class """
+
+    def __init__(self):
+        self.full_name = 'ololo'
 
 
 class FromTestClass(object):
@@ -467,8 +481,16 @@ class ObjectMapperTest(unittest.TestCase):
     def test_mapping_creation_with_constructor_parameters_correct(self):
         mapper = ObjectMapper()
 
-        mapper.create_map(FromTestInitArguments, ToTestInitArguments,
-                          init_mapping={'full_name': lambda o: o.name})
+        mapper.create_map(FromTestConstructorArguments, ToTestConstructorArguments,
+                          constructor_mapping={'full_name': lambda o: o.name})
 
-        result = mapper.map(FromTestInitArguments(), ToTestInitArguments)
+        result = mapper.map(FromTestConstructorArguments(), ToTestConstructorArguments)
+        self.assertEqual(result.full_name, 'ololo')
+
+    def test_automatic_constructor_mapping__on_mapping_creation(self):
+        mapper = ObjectMapper()
+
+        mapper.create_map(FromTestConstructorAutoMapping, ToTestConstructorAutoMapping)
+
+        result = mapper.map(FromTestConstructorAutoMapping(), ToTestConstructorAutoMapping)
         self.assertEqual(result.full_name, 'ololo')
